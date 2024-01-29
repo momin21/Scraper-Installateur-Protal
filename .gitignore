@@ -1,2 +1,4 @@
 chrome-win64/*
 chrome*
+*.xlsx
+*.html

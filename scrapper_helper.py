@@ -1,4 +1,3 @@
-from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
@@ -37,21 +36,6 @@ def goToKunden(driver, target_url):
     driver.get(target_url)
     return
 
-def appendValues(dataValues, installations, besitzer, akku):
-    dataValues.append({
-                    'Installation': installations.get('Installation'),
-                    'Installationsdatum': installations.get('Installationsdatum'),
-                    'Name': besitzer.get('Name'),
-                    'Firma': besitzer.get('Firma'),
-                    'Ort': besitzer.get('Ort'),
-                    'E-Mail': besitzer.get('E-Mail'),
-                    'Straße': besitzer.get('Straße'),
-                    'Telefon': besitzer.get('Telefon'),
-                    'Anzahl Module': akku.get('Anzahl Module'),
-                    'Kapazität': akku.get('Kapazität')
-                })
-    return dataValues
-
 def commitDataToFile(fileName, data):
     # data needs to be saved to file
     try:
@@ -77,6 +61,27 @@ def clickRow(driver, rowCount, rows):
     rows[rowCount].click()
     return
 
+def appendValues(dataValues, installations, besitzer, akku):
+    dataValues.append({
+                    'Installation': installations.get('Installation'),
+                    'Installationsdatum': installations.get('Installationsdatum'),
+                    'Name': besitzer.get('Name'),
+                    'Firma': besitzer.get('Firma'),
+                    'Ort': besitzer.get('Ort'),
+                    'E-Mail': besitzer.get('E-Mail'),
+                    'Straße': besitzer.get('Straße'),
+                    'Telefon': besitzer.get('Telefon'),
+                    'Anzahl Module': akku.get('Anzahl Module'),
+                    'Kapazität': akku.get('Kapazität')
+                })
+    return dataValues
+
+def scrapeDataForCustomer(driver, data_list):
+    installations = getTableValues(driver, 'Installation')
+    besitzer = getTableValues(driver, 'Name')
+    akku = getTableValues(driver, 'Technologie')
+    return appendValues(data_list, installations, besitzer, akku)
+
 def getTableValues(driver, tableName):
     print("trying to parse ", tableName)
     installation_table = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, '//table[.//span[text()="'+ tableName +'"]]')))
@@ -91,6 +96,22 @@ def getTableValues(driver, tableName):
         values_dict[caption] = value
     return values_dict
 
+def scrollToBottom(driver):
+    print("Trying to scroll to Bottom")
+
+    header_element = driver.find_element_by_css_selector(".v-table-caption-container.v-table-caption-container-align-center")
+    
+    # Click on the header to activate it
+    header_element.click()
+    
+    # Send the down arrow key multiple times to simulate scrolling down
+    for _ in range(200):  # Adjust the number of times you want to press the key
+        ActionChains(driver).send_keys(Keys.ARROW_DOWN).perform()
+        # time.sleep(1)  # Adjust the delay as needed
+    time.sleep(5)
+    print("Done scrolling to Bottom")
+
+
 def iterateOverTable(driver, target_url):
     wait(5)
     row = 0
@@ -101,25 +122,33 @@ def iterateOverTable(driver, target_url):
             
             # Wait for the table to be present
             table = loadTable(driver)
+            
             rows = table.find_elements_by_tag_name('tr')
+
+            if row >= len(rows):
+                ActionChains(driver).move_to_element(rows[len(rows) - 1]).perform()
+                scrollToBottom(driver)
+                rows = table.find_elements_by_tag_name('tr')
+
             print("Kunden Page Loaded Found Rows in the table: ", len(rows))
 
+
             if row < len(rows):
+
                 clickRow(driver, row, rows)
+
                 waitForDataPageToLoad(driver)
 				
-                installations = getTableValues(driver, 'Installation')                
-                besitzer = getTableValues(driver, 'Name')
-                akku = getTableValues(driver, 'Technologie')
-                
-                data_list = appendValues(data_list, installations, besitzer, akku)
-                # input("Input if you want to skip to a specific number of row: ")
+                data_list = scrapeDataForCustomer(driver, data_list)
+
                 row += 1
+                print("On row: ", row)
+                # row = int(input("Enter row number you want to jump to : "))
                 
             else:
-                print("No more rows - Exiting")
+                print("No more rows - Scrolling More")
                 break
-                
+
         except TimeoutException as e:
             print(f"Error: {e}")
             print("Timeout: Table not found within the specified time. Exiting.")

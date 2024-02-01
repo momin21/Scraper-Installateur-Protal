@@ -1,0 +1,8 @@
+{
+	"username": "Service@energieversum.de",
+	"password": "Ey8iNk4s13",
+	"login_url": "https://mein-senec.de/auth/login",
+	"main_page_url": "https://mein-senec.de/installateur/#!customers",
+	"fileName": "senec_scrapped.xlsx",
+	"chromedriver_path": "D:/Training/Scrapper/chromedriver.exe"
+}

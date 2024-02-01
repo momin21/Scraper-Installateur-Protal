@@ -56,9 +56,14 @@ def waitForDataPageToLoad(driver):
      return
 
 def clickRow(driver, rowCount, rows):
-    print("Clicking the Row", rowCount + 1)
-    ActionChains(driver).move_to_element(rows[rowCount]).perform()
-    rows[rowCount].click()
+    current_row = rows[rowCount]
+    first_column = current_row.find_element_by_xpath(".//td[1]")
+    if "v-table-cell-content-meinsenec-padlock-wrench" not in first_column.get_attribute("class"):
+        print("Clicking the Row", rowCount + 1)
+        ActionChains(driver).move_to_element(current_row).perform()
+        current_row.click()
+    else:
+        print("Skipping the row with paddle lock")
     return
 
 def appendValues(dataValues, installations, besitzer, akku):
@@ -98,40 +103,42 @@ def getTableValues(driver, tableName):
 
 def scrollToBottom(driver):
     print("Trying to scroll to Bottom")
-
-    header_element = driver.find_element_by_css_selector(".v-table-caption-container.v-table-caption-container-align-center")
-    
-    # Click on the header to activate it
-    header_element.click()
-    
     # Send the down arrow key multiple times to simulate scrolling down
-    for _ in range(200):  # Adjust the number of times you want to press the key
+    for _ in range(10):  # Adjust the number of times you want to press the key
         ActionChains(driver).send_keys(Keys.ARROW_DOWN).perform()
         # time.sleep(1)  # Adjust the delay as needed
     time.sleep(5)
     print("Done scrolling to Bottom")
 
+def inputSearch(driver):
+    number_input = driver.find_element(By.CLASS_NAME, "meinsenec-searchfield")
+    number_input.clear()  # Clear any existing text
+    number_input.send_keys("986353504")  # Enter your desired number
+    ActionChains(driver).send_keys(Keys.ENTER).perform()
+    print("Data Searched")
+    wait(5)
 
 def iterateOverTable(driver, target_url):
     wait(5)
     row = 0
-    data_list=[]
+    data_list = []
+    retires = 3;
     while True:
         try:
             goToKunden(driver, target_url)
             
             # Wait for the table to be present
             table = loadTable(driver)
-            
             rows = table.find_elements_by_tag_name('tr')
 
             if row >= len(rows):
+                header_element = driver.find_element_by_css_selector(".v-table-caption-container.v-table-caption-container-align-center")
+                header_element.click()
                 ActionChains(driver).move_to_element(rows[len(rows) - 1]).perform()
                 scrollToBottom(driver)
                 rows = table.find_elements_by_tag_name('tr')
 
             print("Kunden Page Loaded Found Rows in the table: ", len(rows))
-
 
             if row < len(rows):
 
@@ -147,7 +154,10 @@ def iterateOverTable(driver, target_url):
                 
             else:
                 print("No more rows - Scrolling More")
-                break
+                scrollToBottom(driver)
+                retires -= 1;
+                if retires == 0:
+                    break
 
         except TimeoutException as e:
             print(f"Error: {e}")

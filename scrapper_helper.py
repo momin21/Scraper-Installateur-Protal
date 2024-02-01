@@ -55,6 +55,22 @@ def waitForDataPageToLoad(driver):
      print("Data Loaded")
      return
 
+def onlyPushHighLevelInfo(row, dataValues):
+    # print("Locked Row Content: ", row.find_element_by_xpath(".//td[2]").text)
+    dataValues.append({
+                    'Installation': '--',
+                    'Installationsdatum': '--',
+                    'Name': row.find_element_by_xpath(".//td[2]").text,
+                    'Firma': '--',
+                    'Ort': '--',
+                    'E-Mail': '--',
+                    'Straße': '--',
+                    'Telefon': '--',
+                    'Anzahl Module': '--',
+                    'Kapazität': '--'
+                })
+    return dataValues
+
 def clickRow(driver, rowCount, rows):
     current_row = rows[rowCount]
     first_column = current_row.find_element_by_xpath(".//td[1]")
@@ -62,9 +78,10 @@ def clickRow(driver, rowCount, rows):
         print("Clicking the Row", rowCount + 1)
         ActionChains(driver).move_to_element(current_row).perform()
         current_row.click()
+        return True
     else:
         print("Skipping the row with paddle lock")
-    return
+        return False
 
 def appendValues(dataValues, installations, besitzer, akku):
     dataValues.append({
@@ -129,6 +146,8 @@ def iterateOverTable(driver, target_url):
             
             # Wait for the table to be present
             table = loadTable(driver)
+            # inputSearch(driver)
+            # table = loadTable(driver)
             rows = table.find_elements_by_tag_name('tr')
 
             if row >= len(rows):
@@ -137,17 +156,21 @@ def iterateOverTable(driver, target_url):
                 ActionChains(driver).move_to_element(rows[len(rows) - 1]).perform()
                 scrollToBottom(driver)
                 rows = table.find_elements_by_tag_name('tr')
+                print("Rows Loaded: ", len(rows))
 
             print("Kunden Page Loaded Found Rows in the table: ", len(rows))
 
             if row < len(rows):
+                retires = 0
 
-                clickRow(driver, row, rows)
-
-                waitForDataPageToLoad(driver)
-				
-                data_list = scrapeDataForCustomer(driver, data_list)
-
+                isClicked = clickRow(driver, row, rows)
+                if isClicked:
+                    print("Opening Page after click")
+                    waitForDataPageToLoad(driver)
+                    data_list = scrapeDataForCustomer(driver, data_list)
+                else:
+                    print("Row not clicked scrapping high level info")
+                    data_list = onlyPushHighLevelInfo(rows[row], data_list)
                 row += 1
                 print("On row: ", row)
                 # row = int(input("Enter row number you want to jump to : "))
@@ -155,14 +178,17 @@ def iterateOverTable(driver, target_url):
             else:
                 print("No more rows - Scrolling More")
                 scrollToBottom(driver)
-                retires -= 1;
+                retires -= 1
                 if retires == 0:
                     break
 
         except TimeoutException as e:
             print(f"Error: {e}")
             print("Timeout: Table not found within the specified time. Exiting.")
-            break
+            retires -= 1
+            if retires == 0:
+                    break
+            
         except NoSuchElementException as e:
             print(f"Error: {e}")
             print("Element not found. Exiting.")
